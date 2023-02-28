@@ -40,6 +40,14 @@ class BulkUploadServiceProvider extends ServiceProvider
 
             $view->with('productTypes', $types);
         });
+
+        if ($this->app->runningInConsole()) {
+
+            $this->publishes([
+                __DIR__.'/Config/config.php' => config_path('bulk_importer.php'),
+            ], 'config');
+
+        }
     }
 
     /**
@@ -66,5 +74,7 @@ class BulkUploadServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(
             dirname(__DIR__) . '/Config/admin-menu.php', 'menu.admin'
         );
+
+        $this->mergeConfigFrom(__DIR__.'/Config/config.php', 'bulk_importer');
     }
 }

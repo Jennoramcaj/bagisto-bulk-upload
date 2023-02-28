@@ -5,6 +5,7 @@ namespace Webkul\Bulkupload\Http\Controllers\Admin;
 use Webkul\Admin\Imports\DataGridImport;
 use Maatwebsite\Excel\Validators\Failure;
 use Webkul\Bulkupload\Helpers\ImportProduct;
+use Webkul\Bulkupload\Jobs\ImportPortionOfCSV;
 use Webkul\Bulkupload\Repositories\ImportProductRepository;
 use Webkul\Bulkupload\Repositories\DataFlowProfileRepository;
 use Webkul\Bulkupload\Repositories\Products\SimpleProductRepository;
@@ -247,11 +248,13 @@ class HelperController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function runProfile()
+    public function runProfile($request = null, $customRequest = null)
     {
-        $data_flow_profile_id = request()->data_flow_profile_id;
-        $numberOfCSVRecord = request()->numberOfCSVRecord;
-        $countOfStartedProfiles = request()->countOfStartedProfiles;
+        $data_flow_profile_id = $customRequest != null ? $customRequest['data_flow_profile_id'] : request()->data_flow_profile_id;
+        $numberOfCSVRecord = $customRequest != null ? $customRequest['numberOfCSVRecord'] : request()->numberOfCSVRecord;
+        $countOfStartedProfiles = $customRequest != null ? $customRequest['countOfStartedProfiles'] : request()->countOfStartedProfiles;
+        $totalNumberOfCSVRecord = $customRequest != null ? $customRequest['totalNumberOfCSVRecord'] : request()->totalNumberOfCSVRecord;
+        $requestAll = $customRequest != null ? $customRequest : request()->all();
         $product = [];
         $imageZipName = null;
 
@@ -295,10 +298,18 @@ class HelperController extends Controller
                             $bundledProduct = $this->bundledProductRepository->createProduct(request()->all(), $imageZipName);
 
                             return response()->json($bundledProduct);
-                        case "configurable" OR "variant":
-                            $configurableProduct = $this->configurableProductRepository->createProduct(request()->all(), $imageZipName, $product);
+                        case 'configurable' || 'variant':
+                            // Queue when is configurable and queue is enabled
+                            if ($csvData[$i]['type'] == 'configurable' && config('bulk_importer.use_queue')) {
+                                ImportPortionOfCSV::dispatch($requestAll, $imageZipName, $product, $data_flow_profile_id, $totalNumberOfCSVRecord);
 
-                            return response()->json($configurableProduct);
+                                return;
+                            } elseif (!config('bulk_importer.use_queue')) {
+                                $configurableProduct = $this->configurableProductRepository->createProduct(request()->all(), $imageZipName, $product);
+
+                                return response()->json($configurableProduct);
+                            }
+                        case "configurable" || "variant":
                     }
                 }
             } else {
