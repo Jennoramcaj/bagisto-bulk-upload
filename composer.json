@@ -1,5 +1,5 @@
 {
-  "name": "bagisto/bagisto-bulk-upload",
+  "name": "jennoramcaj/bagisto-bulk-upload",
   "description": "Add products using CSV or XLS in bagisto.",
   "keywords": [
     "bagisto",
